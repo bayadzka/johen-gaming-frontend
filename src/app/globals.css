@@ -1,26 +1,25 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* Warna Utama (Primary) */
+  --color-johen-cyan: #00C8F0;
+  --color-johen-violet: #7C3AED;
+  --color-johen-magenta: #D946EF;
+  --color-johen-blue: #3B82F6;
+
+  /* Warna Netral & Background (Paket 01) */
+  --color-johen-space: #0A0A1A;
+  --color-johen-navy: #12122A;
+  --color-johen-indigo: #1E1E3F;
+
+  /* Warna Aksen & Status */
+  --color-johen-success: #10B981;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Base Styles untuk website */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--color-johen-space);
+  color: #FFFFFF;
   font-family: Arial, Helvetica, sans-serif;
 }
