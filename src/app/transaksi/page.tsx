@@ -18,8 +18,24 @@ export default function TransaksiPage() {
     const fetchAllOrders = async () => {
       try {
         const res = await axios.get("http://localhost:3000/orders");
-        const sortedOrders = res.data.data.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setOrders(sortedOrders);
+        const allOrders = res.data.data || [];
+
+// Ambil email user login dari localStorage
+const loggedInEmail = localStorage.getItem("user-email");
+
+// Filter hanya transaksi milik user login
+const myOrders = allOrders.filter(
+  (order: any) => order.customer_email === loggedInEmail
+);
+
+// Urutkan terbaru
+const sortedOrders = myOrders.sort(
+  (a: any, b: any) =>
+    new Date(b.created_at).getTime() -
+    new Date(a.created_at).getTime()
+);
+
+setOrders(sortedOrders);
       } catch (error) {
         console.error("Gagal mengambil data riwayat transaksi:", error);
       } finally {

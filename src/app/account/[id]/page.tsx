@@ -7,12 +7,21 @@ import FadeIn from "@/components/FadeIn";
 import { 
   Gamepad2, ShieldCheck, ShoppingCart, ArrowLeft, 
   Award, BarChart2, Zap, Percent, Maximize2, X, ChevronDown, ChevronUp,
-  Package
+  Package, Lock
 } from "lucide-react";
 
 export default function AccountDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const cekApakahSudahLogin = () => {
+    const userName = localStorage.getItem("user-name"); 
+    if (!userName) {
+      setShowAuthModal(true);
+      return false; 
+    }
+    return true;
+  };
   
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -47,13 +56,7 @@ export default function AccountDetailPage() {
   }, [id]);
 
   const handleAddToCart = () => {
-    const isLoggedIn = localStorage.getItem("sb-token");
-    if (!isLoggedIn) {
-      alert("Kamu harus login terlebih dahulu untuk belanja!");
-      router.push("/login"); // Lempar ke halaman login
-      return;
-    }
-
+    if (!cekApakahSudahLogin()) return;
     if (!account) return;
     const userEmail = localStorage.getItem("user-email");
     const cartKey = userEmail ? `johen-cart-${userEmail}` : "johen-cart-guest";
@@ -72,14 +75,7 @@ export default function AccountDetailPage() {
   };
 
   const handleBeliSekarang = () => {
-    const isLoggedIn = localStorage.getItem("sb-token"); 
-    
-    if (!isLoggedIn) {
-      alert("Kamu harus login terlebih dahulu untuk belanja!");
-      router.push("/login"); // Lempar ke halaman login
-      return;
-    }
-    
+    if (!cekApakahSudahLogin()) return;
     if (!account) return;
     const checkoutItem = { 
       id: account.id, 
@@ -293,7 +289,12 @@ export default function AccountDetailPage() {
               <div className="space-y-3 relative z-10">
 
   <button
-    onClick={handleAddToCart}
+    onClick={() => {
+      if (!cekApakahSudahLogin()) return; 
+      
+      // Jika lolos, baru jalankan fungsi keranjangnya
+      handleAddToCart(); 
+    }}
     disabled={account.status === 'sold'}
     className={`w-full font-bold py-3 rounded-xl border transition flex items-center justify-center gap-2 text-sm ${
       account.status === 'sold'
@@ -308,7 +309,12 @@ export default function AccountDetailPage() {
   </button>
 
   <button
-    onClick={handleBeliSekarang}
+    onClick={() => {
+      if (!cekApakahSudahLogin()) return; 
+      
+      // Jika lolos, baru jalankan fungsi keranjangnya
+      handleBeliSekarang(); 
+    }}
     disabled={account.status === 'sold'}
     className={`w-full py-3.5 rounded-xl transition text-sm tracking-wide uppercase font-black ${
       account.status === 'sold'
@@ -340,6 +346,24 @@ export default function AccountDetailPage() {
           <span className="text-sm font-bold tracking-wide">{toastMsg}</span>
         </div>
       </div>
+      {/* CUSTOM MODAL: PERINGATAN BELUM LOGIN */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95 duration-200">
+          <div className="bg-[#12122A] border border-[var(--color-johen-cyan)]/30 rounded-2xl w-full max-w-sm p-6 shadow-[0_0_40px_rgba(0,200,240,0.15)] text-center">
+            <div className="w-16 h-16 bg-[var(--color-johen-cyan)]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[var(--color-johen-cyan)]/30">
+              <Lock size={32} className="text-[var(--color-johen-cyan)]" />
+            </div>
+            <h3 className="font-black text-xl text-white mb-2">Akses Terkunci</h3>
+            <p className="text-sm text-gray-400 mb-6">Halo! Kamu wajib Masuk atau Daftar akun terlebih dahulu sebelum bisa memborong akun sultan.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowAuthModal(false)} className="flex-1 py-3 text-sm text-gray-400 hover:bg-white/5 rounded-xl transition font-bold">Batal</button>
+              <button onClick={() => router.push('/login')} className="flex-1 py-3 bg-[var(--color-johen-cyan)] hover:bg-[#22D3EE] text-[#0A0A1A] rounded-xl font-extrabold text-sm transition">
+                Masuk / Daftar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

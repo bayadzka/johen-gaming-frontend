@@ -77,18 +77,8 @@ export default function Navbar() {
     router.push("/checkout"); // Lompat ke halaman checkout
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user-token");
-    localStorage.removeItem("user-refresh-token");
-    localStorage.removeItem("user-name");
-    localStorage.removeItem("user-email"); 
-    localStorage.removeItem("sb-token");
-    
-    setIsLoggedIn(false);
-    setUserName("");
-    setCartItems([]);
-    setSelectedCheckoutIndex(null);
-    setShowProfileMenu(false);
+const handleLogout = async () => {
+    localStorage.clear();
     window.location.href = "/";
   };
 

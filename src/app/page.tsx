@@ -2,11 +2,24 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import FadeIn from "@/components/FadeIn";
-import { Search, Gamepad2, ShieldCheck, Flame, ShoppingCart } from "lucide-react";
+import { Search, Gamepad2, ShieldCheck, Flame, ShoppingCart, Lock } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  
+  const cekApakahSudahLogin = () => {
+    const userName = localStorage.getItem("user-name"); 
+    if (!userName) {
+      setShowAuthModal(true);
+      return false; 
+    }
+    return true; 
+  };
+  
   const [games, setGames] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,10 +41,10 @@ export default function Home() {
       axios.get("http://localhost:3000/accounts/admin-list")
     ])
       .then(([resGames, resAccounts]) => {
-  setGames(resGames.data.data || []);
-  setAccounts(resAccounts.data.data || []);
-  setLoading(false);
-})
+        setGames(resGames.data.data || []);
+        setAccounts(resAccounts.data.data || []);
+        setLoading(false);
+      })
       .catch((err) => {
         console.error("Gagal memuat data toko:", err);
         setLoading(false);
@@ -41,9 +54,16 @@ export default function Home() {
   const filteredGames = games.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredAccounts = accounts.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.games?.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // --- FUNGSI TAMBAH KERANJANG (ANTI DUPLIKAT & TOAST) ---
+  // --- MEMISAHKAN AKUN READY DAN SOLD OUT ---
+  const availableAccounts = filteredAccounts.filter(a => a.status === 'available');
+  const soldAccounts = filteredAccounts.filter(a => a.status === 'sold');
+
+  // --- FUNGSI TAMBAH KERANJANG (ANTI DUPLIKAT, TOAST, & SATPAM LOGIN) ---
   const addToCart = (e: React.MouseEvent, product: any) => {
     e.preventDefault();
+    
+    // SATPAM BERAKSI: Hentikan fungsi jika belum login
+    if (!cekApakahSudahLogin()) return;
     
     // Tentukan kunci keranjang berdasarkan email user yang sedang login
     const userEmail = localStorage.getItem("user-email");
@@ -157,48 +177,38 @@ export default function Home() {
             </h2>
           </div>
 
+          {/* BAGIAN 1: AKUN READY */}
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               {[1, 2, 3, 4].map((n) => <div key={n} className="h-64 bg-[#12122A] rounded-2xl animate-pulse border border-white/5"></div>)}
             </div>
-          ) : filteredAccounts.length === 0 ? (
+          ) : availableAccounts.length === 0 ? (
             <div className="text-center py-16 text-gray-500 border border-dashed border-white/5 rounded-xl bg-[#12122A]/10 text-sm">
-              {searchQuery ? `Tidak ada akun yang cocok dengan kata kunci "${searchQuery}".` : "Belum ada akun game yang ter-posting."}
+              {searchQuery ? `Tidak ada akun ready yang cocok dengan "${searchQuery}".` : "Belum ada akun game yang ter-posting."}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              {filteredAccounts.map((account) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
+              {availableAccounts.map((account) => (
                 <Link 
                   href={`/account/${account.id}`} 
                   key={account.id}
                   className="bg-[#12122A]/40 backdrop-blur-sm border border-white/5 rounded-2xl p-4 hover:border-[var(--color-johen-cyan)]/30 transition-all duration-300 group flex flex-col h-full hover:-translate-y-1.5 hover:shadow-lg relative"
                 >
                   <div className="bg-gradient-to-br from-[#1E1E3F] to-[#0A0A1A] h-36 rounded-xl mb-4 flex items-center justify-center border border-white/5 relative overflow-hidden">
-
-  {/* GAMBAR ACCOUNT */}
-  {account.account_details?.images?.[0] ? (
-    <img
-      src={account.account_details.images[0]}
-      alt={account.title}
-      className="w-full h-full object-cover"
-    />
-  ) : (
-    <Gamepad2
-      size={36}
-      className="text-gray-600 group-hover:text-[var(--color-johen-cyan)] transition-all duration-300"
-    />
-  )}
-
-  {/* OVERLAY SOLD OUT */}
-  {account.status === 'sold' && (
-    <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10 backdrop-blur-[2px]">
-      <span className="bg-red-600 text-white font-black px-4 py-2 rounded-lg transform -rotate-12 border-2 border-[#0A0A1A] shadow-2xl tracking-widest text-lg">
-        SOLD OUT
-      </span>
-    </div>
-  )}
-
-</div>
+                    {/* GAMBAR ACCOUNT */}
+                    {account.account_details?.images?.[0] ? (
+                      <img
+                        src={account.account_details.images[0]}
+                        alt={account.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Gamepad2
+                        size={36}
+                        className="text-gray-600 group-hover:text-[var(--color-johen-cyan)] transition-all duration-300"
+                      />
+                    )}
+                  </div>
                   
                   <div className="text-[9px] text-[var(--color-johen-cyan)] mb-2 font-extrabold tracking-widest uppercase px-2 py-0.5 bg-[var(--color-johen-cyan)]/10 rounded border border-[var(--color-johen-cyan)]/20 w-fit">
                     {account.games?.name}
@@ -218,14 +228,9 @@ export default function Home() {
                       <p className="font-extrabold text-[var(--color-johen-cyan)] text-base">Rp {Number(account.final_price).toLocaleString('id-ID')}</p>
                     </div>
                     
-                   <button
-  onClick={(e) => addToCart(e, account)}
-  disabled={account.status === 'sold'}
-                      className={`p-2 rounded-lg transition duration-300 z-10 border ${
-  account.status === 'sold'
-    ? 'bg-gray-800 text-gray-500 border-white/5 cursor-not-allowed'
-    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-[var(--color-johen-cyan)] hover:text-[#0A0A1A] hover:border-[var(--color-johen-cyan)]'
-}`}
+                    <button
+                      onClick={(e) => addToCart(e, account)}
+                      className="p-2 rounded-lg transition duration-300 z-10 border bg-white/5 border-white/10 text-gray-400 hover:bg-[var(--color-johen-cyan)] hover:text-[#0A0A1A] hover:border-[var(--color-johen-cyan)]"
                       title="Tambah ke Keranjang"
                     >
                       <ShoppingCart size={18} />
@@ -235,6 +240,75 @@ export default function Home() {
               ))}
             </div>
           )}
+
+          {/* BAGIAN 2: AKUN SOLD OUT (Hanya tampil jika ada yang sold) */}
+          {!loading && soldAccounts.length > 0 && (
+            <div className="mt-8 border-t border-white/5 pt-8">
+              <h2 className="text-lg md:text-xl font-black flex items-center gap-2 uppercase tracking-wider text-gray-500 mb-6 opacity-70">
+                <span className="w-1.5 h-6 bg-red-600 rounded-full"></span>
+                Histori Terjual (Sold Out)
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 opacity-60 hover:opacity-100 transition-opacity duration-500">
+                {soldAccounts.map((account) => (
+                  <Link 
+                    href={`/account/${account.id}`} 
+                    key={account.id}
+                    className="bg-[#12122A]/40 backdrop-blur-sm border border-white/5 rounded-2xl p-4 transition-all duration-300 flex flex-col h-full relative"
+                  >
+                    <div className="bg-gradient-to-br from-[#1E1E3F] to-[#0A0A1A] h-36 rounded-xl mb-4 flex items-center justify-center border border-white/5 relative overflow-hidden">
+                      {account.account_details?.images?.[0] ? (
+                        <img
+                          src={account.account_details.images[0]}
+                          alt={account.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Gamepad2
+                          size={36}
+                          className="text-gray-600"
+                        />
+                      )}
+
+                      {/* OVERLAY SOLD OUT */}
+                      <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10 backdrop-blur-[2px]">
+                        <span className="bg-red-600 text-white font-black px-4 py-2 rounded-lg transform -rotate-12 border-2 border-[#0A0A1A] shadow-2xl tracking-widest text-lg">
+                          SOLD OUT
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-[9px] text-[var(--color-johen-cyan)] mb-2 font-extrabold tracking-widest uppercase px-2 py-0.5 bg-[var(--color-johen-cyan)]/10 rounded border border-[var(--color-johen-cyan)]/20 w-fit">
+                      {account.games?.name}
+                    </div>
+                    
+                    <h3 className="font-bold text-sm md:text-base text-gray-200 line-clamp-2 mb-1 flex-grow">
+                      {account.title}
+                    </h3>
+
+                    {account.account_details?.total_collection_points > 0 && (
+                      <p className="text-[11px] text-gray-500 mb-4">Poin Koleksi: <span className="text-gray-300 font-semibold">{account.account_details.total_collection_points}</span></p>
+                    )}
+                    
+                    <div className="flex items-end justify-between pt-3 border-t border-white/5 mt-auto">
+                      <div>
+                        <p className="text-[9px] text-gray-500 uppercase tracking-widest">Harga Jual</p>
+                        <p className="font-extrabold text-[var(--color-johen-cyan)] text-base">Rp {Number(account.final_price).toLocaleString('id-ID')}</p>
+                      </div>
+                      
+                      <button
+                        disabled
+                        className="p-2 rounded-lg transition duration-300 z-10 border bg-gray-800 text-gray-500 border-white/5 cursor-not-allowed"
+                        title="Akun Telah Terjual"
+                      >
+                        <ShoppingCart size={18} />
+                      </button>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </FadeIn>
 
@@ -245,6 +319,26 @@ export default function Home() {
           <span className="text-sm font-bold tracking-wide">{toastMsg}</span>
         </div>
       </div>
+
+      {/* CUSTOM MODAL: PERINGATAN BELUM LOGIN */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in zoom-in-95 duration-200">
+          <div className="bg-[#12122A] border border-[var(--color-johen-cyan)]/30 rounded-2xl w-full max-w-sm p-6 shadow-[0_0_40px_rgba(0,200,240,0.15)] text-center">
+            <div className="w-16 h-16 bg-[var(--color-johen-cyan)]/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-[var(--color-johen-cyan)]/30">
+              <Lock size={32} className="text-[var(--color-johen-cyan)]" />
+            </div>
+            <h3 className="font-black text-xl text-white mb-2">Akses Terkunci</h3>
+            <p className="text-sm text-gray-400 mb-6">Halo! Kamu wajib Masuk atau Daftar akun terlebih dahulu sebelum bisa menambahkan item ke keranjang.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowAuthModal(false)} className="flex-1 py-3 text-sm text-gray-400 hover:bg-white/5 rounded-xl transition font-bold">Batal</button>
+              <button onClick={() => router.push('/login')} className="flex-1 py-3 bg-[var(--color-johen-cyan)] hover:bg-[#22D3EE] text-[#0A0A1A] rounded-xl font-extrabold text-sm transition">
+                Masuk / Daftar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
