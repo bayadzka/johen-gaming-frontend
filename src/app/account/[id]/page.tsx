@@ -40,7 +40,7 @@ export default function AccountDetailPage() {
 
   useEffect(() => {
     if (id) {
-      axios.get(`http://localhost:3000/accounts/${id}`)
+      axios.get(`https://johen-gaming-backend-production.up.railway.app/accounts/${id}`)
         .then((res) => {
           // Memastikan data yang masuk benar-benar objek, bukan undefined
           setAccount(res.data.data || null);

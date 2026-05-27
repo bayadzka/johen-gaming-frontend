@@ -17,7 +17,7 @@ export default function TransaksiPage() {
   useEffect(() => {
     const fetchAllOrders = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/orders");
+        const res = await axios.get("https://johen-gaming-backend-production.up.railway.app/orders");
         const allOrders = res.data.data || [];
 
 // Ambil email user login dari localStorage

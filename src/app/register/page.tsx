@@ -38,7 +38,7 @@ export default function RegisterPage() {
     setErrorMsg("");
 
     try {
-      await axios.post("http://localhost:3000/auth/register", formData);
+      await axios.post("https://johen-gaming-backend-production.up.railway.app/auth/register", formData);
       
       // Menggunakan custom alert atau bisa diganti toast nanti
       alert("Registrasi berhasil! Silakan masuk dengan akun kamu.");

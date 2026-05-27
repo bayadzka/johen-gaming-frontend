@@ -37,8 +37,8 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([
-      axios.get("http://localhost:3000/accounts/games"),
-      axios.get("http://localhost:3000/accounts/admin-list")
+      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games"),
+      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list")
     ])
       .then(([resGames, resAccounts]) => {
         setGames(resGames.data.data || []);

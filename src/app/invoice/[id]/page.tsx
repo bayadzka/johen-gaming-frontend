@@ -27,7 +27,7 @@ export default function InvoicePage() {
     if (!id) return;
     const fetchOrder = async () => {
       try {
-        const res = await axios.get(`http://localhost:3000/orders/${id}`);
+        const res = await axios.get(`https://johen-gaming-backend-production.up.railway.app/orders/${id}`);
         setOrder(res.data.data); 
       } catch (err) { 
         alert("Invoice tidak ditemukan."); router.push("/transaksi");

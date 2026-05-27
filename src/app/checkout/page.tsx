@@ -112,7 +112,7 @@ export default function CheckoutPage() {
         voucher_code: appliedVoucher ? appliedVoucher.code : null
       };
 
-      const response = await axios.post("http://localhost:3000/orders/checkout", payload);
+      const response = await axios.post("https://johen-gaming-backend-production.up.railway.app/orders/checkout", payload);
       const orderId = response.data.order_summary?.order_id;
       
       if (orderId) {

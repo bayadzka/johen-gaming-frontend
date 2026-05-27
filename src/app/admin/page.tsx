@@ -90,8 +90,8 @@ export default function AdminDashboard() {
       // Tambahkan timestamp agar browser tidak membaca cache lama (Anti-Ghosting)
       const t = new Date().getTime();
       const [resProducts, resOrders] = await Promise.all([
-        axios.get(`http://localhost:3000/accounts/admin-list?t=${t}`),
-        axios.get(`http://localhost:3000/orders?t=${t}`)
+        axios.get(`https://johen-gaming-backend-production.up.railway.app/accounts/admin-list?t=${t}`),
+        axios.get(`https://johen-gaming-backend-production.up.railway.app/orders?t=${t}`)
       ]);
       setProducts(resProducts.data.data || []);
       const sortedOrders = (resOrders.data.data || []).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -102,8 +102,8 @@ export default function AdminDashboard() {
   const fetchMasterData = async () => {
     try {
       const [resVal, resGames] = await Promise.all([
-        axios.get("http://localhost:3000/accounts/valuation-master"),
-        axios.get("http://localhost:3000/accounts/games")
+        axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/valuation-master"),
+        axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games")
       ]);
       setValuationMaster(resVal.data.data || []); 
       setGames(resGames.data.data || []);
@@ -137,13 +137,13 @@ export default function AdminDashboard() {
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Yakin ingin menghapus akun ini secara permanen?")) {
-      try { await axios.delete(`http://localhost:3000/accounts/${id}`); fetchData(); } catch (error) { alert("Gagal menghapus data."); }
+      try { await axios.delete(`https://johen-gaming-backend-production.up.railway.app/accounts/${id}`); fetchData(); } catch (error) { alert("Gagal menghapus data."); }
     }
   };
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === 'available' ? 'sold' : 'available';
-    try { await axios.patch(`http://localhost:3000/accounts/${id}/status`, { status: newStatus }); fetchData(); } catch (error) { alert("Gagal merubah status."); }
+    try { await axios.patch(`https://johen-gaming-backend-production.up.railway.app/accounts/${id}/status`, { status: newStatus }); fetchData(); } catch (error) { alert("Gagal merubah status."); }
   };
 
   const handleSaveAccount = async (e: React.FormEvent) => {
@@ -160,15 +160,15 @@ export default function AdminDashboard() {
       } else {
         payload = { game_id: selectedGameId, title: accountTitle, calculated_price: basicPrice, admin_margin: 0, final_price: basicPrice, status: 'available', account_details: { description: basicDesc } };
       }
-      if (editModeId) { const { status, ...updatePayload } = payload; await axios.put(`http://localhost:3000/accounts/${editModeId}`, updatePayload); } 
-      else { await axios.post("http://localhost:3000/accounts", payload); }
+      if (editModeId) { const { status, ...updatePayload } = payload; await axios.put(`https://johen-gaming-backend-production.up.railway.app/accounts/${editModeId}`, updatePayload); } 
+      else { await axios.post("https://johen-gaming-backend-production.up.railway.app/accounts", payload); }
       setShowAddModal(false); fetchData(); 
     } catch (error) { alert("Gagal menyimpan akun."); } finally { setIsSaving(false); }
   };
 
   const handleAddNewGame = async () => {
     if(!newGameName) return;
-    try { await axios.post("http://localhost:3000/accounts/games", { name: newGameName, publisher: 'General', input_type: 'id_only' }); setShowAddGameModal(false); setNewGameName(""); fetchMasterData(); } catch(err) { alert("Gagal menambah game."); }
+    try { await axios.post("https://johen-gaming-backend-production.up.railway.app/accounts/games", { name: newGameName, publisher: 'General', input_type: 'id_only' }); setShowAddGameModal(false); setNewGameName(""); fetchMasterData(); } catch(err) { alert("Gagal menambah game."); }
   };
 
   const handleSaveVoucher = async (e: React.FormEvent) => {
@@ -364,7 +364,7 @@ export default function AdminDashboard() {
 
     setIsUpdatingStatus(true);
     try {
-      await axios.patch(`http://localhost:3000/orders/${orderId}/status`, { status: newStatus, reason: reason });
+      await axios.patch(`https://johen-gaming-backend-production.up.railway.app/orders/${orderId}/status`, { status: newStatus, reason: reason });
       fetchData(); 
       setSelectedOrder(null);
       setCancelModalOrder(null); // Pastikan modal input tertutup
@@ -1457,7 +1457,7 @@ const [orderGameFilter, setOrderGameFilter] = useState("all");
                       
                       // 1. Tembak API Email (Jika error, kita lanjut saja ubah status)
                       try {
-                        await axios.post(`http://localhost:3000/orders/${deliveryModalOrder.id}/deliver`, {
+                        await axios.post(`https://johen-gaming-backend-production.up.railway.app/orders/${deliveryModalOrder.id}/deliver`, {
                           game_email: deliveryEmail,
                           game_password: deliveryPassword
                         });
@@ -1467,7 +1467,7 @@ const [orderGameFilter, setOrderGameFilter] = useState("all");
 
                       // 2. GANTI BYPASS DENGAN API RESMI BACKEND (Dijamin Permanen)
                       try {
-                        await axios.patch(`http://localhost:3000/orders/${deliveryModalOrder.id}/status`, { 
+                        await axios.patch(`https://johen-gaming-backend-production.up.railway.app/orders/${deliveryModalOrder.id}/status`, { 
                           status: 'completed',
                           reason: 'Data akun telah dikirim ke email pembeli.' 
                         });

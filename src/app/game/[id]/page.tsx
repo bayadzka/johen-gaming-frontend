@@ -62,8 +62,8 @@ export default function TopupGamePage() {
   useEffect(() => {
     if (id) {
       Promise.all([
-        axios.get("http://localhost:3000/accounts/games"),
-        axios.get(`http://localhost:3000/accounts/topup/${id}`)
+        axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games"),
+        axios.get(`https://johen-gaming-backend-production.up.railway.app/accounts/topup/${id}`)
       ])
       .then(([resGames, resPackages]) => {
         const foundGame = resGames.data.data.find((g: any) => g.id === id);
@@ -133,7 +133,7 @@ export default function TopupGamePage() {
         voucher_code: promoDiscount > 0 ? promoCode : undefined
       };
 
-      const response = await axios.post("http://localhost:3000/orders/checkout", payload);
+      const response = await axios.post("https://johen-gaming-backend-production.up.railway.app/orders/checkout", payload);
       const orderId = response.data.order_summary?.order_id;
       
       if (orderId) {

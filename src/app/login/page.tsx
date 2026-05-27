@@ -27,7 +27,7 @@ export default function LoginPage() {
     setErrorMsg("");
 
     try {
-      const response = await axios.post("http://localhost:3000/auth/login", formData);
+      const response = await axios.post("https://johen-gaming-backend-production.up.railway.app/auth/login", formData);
       
       // Ambil token secara aman dari berbagai kemungkinan struktur respon backend
       const token = response.data?.session?.access_token || response.data?.access_token;
