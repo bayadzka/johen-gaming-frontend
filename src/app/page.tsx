@@ -10,36 +10,52 @@ export default function Home() {
   const [games, setGames] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // State untuk Live Search
   const [searchQuery, setSearchQuery] = useState("");
+
+  // --- STATE TOAST NOTIFICATION ---
+  const [toastMsg, setToastMsg] = useState("");
+  const [isToastVisible, setIsToastVisible] = useState(false);
+
+  const showToast = (message: string) => {
+    setToastMsg(message);
+    setIsToastVisible(true);
+    setTimeout(() => setIsToastVisible(false), 3000);
+  };
 
   useEffect(() => {
     Promise.all([
       axios.get("http://localhost:3000/accounts/games"),
-      axios.get("http://localhost:3000/accounts")
+      axios.get("http://localhost:3000/accounts/admin-list")
     ])
       .then(([resGames, resAccounts]) => {
-        setGames(resGames.data.data || []);
-        // Pastikan hanya memuat akun yang 'available'
-        const availableAccounts = (resAccounts.data.data || []).filter((a: any) => a.status === 'available');
-        setAccounts(availableAccounts);
-        setLoading(false);
-      })
+  setGames(resGames.data.data || []);
+  setAccounts(resAccounts.data.data || []);
+  setLoading(false);
+})
       .catch((err) => {
         console.error("Gagal memuat data toko:", err);
         setLoading(false);
       });
   }, []);
 
-  // Logika Filter Pencarian
   const filteredGames = games.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredAccounts = accounts.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.games?.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // Fungsi Tambah ke Keranjang
+  // --- FUNGSI TAMBAH KERANJANG (ANTI DUPLIKAT & TOAST) ---
   const addToCart = (e: React.MouseEvent, product: any) => {
-    e.preventDefault(); // Mencegah pindah halaman saat tombol diklik
-    const currentCart = JSON.parse(localStorage.getItem("johen-cart") || "[]");
+    e.preventDefault();
+    
+    // Tentukan kunci keranjang berdasarkan email user yang sedang login
+    const userEmail = localStorage.getItem("user-email");
+    const cartKey = userEmail ? `johen-cart-${userEmail}` : "johen-cart-guest";
+    
+    const currentCart = JSON.parse(localStorage.getItem(cartKey) || "[]");
+    
+    const isExist = currentCart.some((item: any) => item.id === product.id);
+    if (isExist) {
+      showToast("Item ini sudah ada di keranjangmu!");
+      return;
+    }
     
     const cartItem = {
       id: product.id,
@@ -49,13 +65,10 @@ export default function Home() {
     };
 
     currentCart.push(cartItem);
-    localStorage.setItem("johen-cart", JSON.stringify(currentCart));
-    
-    // Trigger event agar Navbar langsung update angka keranjangnya
+    localStorage.setItem(cartKey, JSON.stringify(currentCart));
     window.dispatchEvent(new Event("cartUpdated"));
     
-    // Opsional: Bisa pasang toast notification di sini
-    alert(`${product.title} ditambahkan ke keranjang!`);
+    showToast(`${product.title} ditambahkan ke keranjang!`);
   };
 
   return (
@@ -78,7 +91,6 @@ export default function Home() {
               Platform top up game tercepat dan marketplace akun terlengkap di Indonesia. Otomatis, murah, dan terpercaya 24 jam.
             </p>
             
-            {/* Live Search Input */}
             <div className="relative max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
               <input
@@ -162,8 +174,31 @@ export default function Home() {
                   className="bg-[#12122A]/40 backdrop-blur-sm border border-white/5 rounded-2xl p-4 hover:border-[var(--color-johen-cyan)]/30 transition-all duration-300 group flex flex-col h-full hover:-translate-y-1.5 hover:shadow-lg relative"
                 >
                   <div className="bg-gradient-to-br from-[#1E1E3F] to-[#0A0A1A] h-36 rounded-xl mb-4 flex items-center justify-center border border-white/5 relative overflow-hidden">
-                    <Gamepad2 size={36} className="text-gray-600 group-hover:text-[var(--color-johen-cyan)] transition-all duration-300" />
-                  </div>
+
+  {/* GAMBAR ACCOUNT */}
+  {account.account_details?.images?.[0] ? (
+    <img
+      src={account.account_details.images[0]}
+      alt={account.title}
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <Gamepad2
+      size={36}
+      className="text-gray-600 group-hover:text-[var(--color-johen-cyan)] transition-all duration-300"
+    />
+  )}
+
+  {/* OVERLAY SOLD OUT */}
+  {account.status === 'sold' && (
+    <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10 backdrop-blur-[2px]">
+      <span className="bg-red-600 text-white font-black px-4 py-2 rounded-lg transform -rotate-12 border-2 border-[#0A0A1A] shadow-2xl tracking-widest text-lg">
+        SOLD OUT
+      </span>
+    </div>
+  )}
+
+</div>
                   
                   <div className="text-[9px] text-[var(--color-johen-cyan)] mb-2 font-extrabold tracking-widest uppercase px-2 py-0.5 bg-[var(--color-johen-cyan)]/10 rounded border border-[var(--color-johen-cyan)]/20 w-fit">
                     {account.games?.name}
@@ -183,10 +218,14 @@ export default function Home() {
                       <p className="font-extrabold text-[var(--color-johen-cyan)] text-base">Rp {Number(account.final_price).toLocaleString('id-ID')}</p>
                     </div>
                     
-                    {/* Tombol Add to Cart (Mencegah navigasi Link Utama) */}
-                    <button 
-                      onClick={(e) => addToCart(e, account)}
-                      className="bg-white/5 border border-white/10 text-gray-400 p-2 rounded-lg hover:bg-[var(--color-johen-cyan)] hover:text-[#0A0A1A] hover:border-[var(--color-johen-cyan)] transition duration-300 z-10"
+                   <button
+  onClick={(e) => addToCart(e, account)}
+  disabled={account.status === 'sold'}
+                      className={`p-2 rounded-lg transition duration-300 z-10 border ${
+  account.status === 'sold'
+    ? 'bg-gray-800 text-gray-500 border-white/5 cursor-not-allowed'
+    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-[var(--color-johen-cyan)] hover:text-[#0A0A1A] hover:border-[var(--color-johen-cyan)]'
+}`}
                       title="Tambah ke Keranjang"
                     >
                       <ShoppingCart size={18} />
@@ -198,6 +237,14 @@ export default function Home() {
           )}
         </div>
       </FadeIn>
+
+      {/* --- TOAST UI --- */}
+      <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 transform ${isToastVisible ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0 pointer-events-none'}`}>
+        <div className="px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-md bg-[var(--color-johen-cyan)]/90 border border-[var(--color-johen-cyan)] text-[#0A0A1A]">
+          <ShoppingCart size={18} />
+          <span className="text-sm font-bold tracking-wide">{toastMsg}</span>
+        </div>
+      </div>
     </div>
   );
 }

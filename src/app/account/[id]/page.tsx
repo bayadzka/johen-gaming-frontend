@@ -6,7 +6,8 @@ import axios from "axios";
 import FadeIn from "@/components/FadeIn";
 import { 
   Gamepad2, ShieldCheck, ShoppingCart, ArrowLeft, 
-  Award, BarChart2, Zap, Percent, Maximize2, X, ChevronDown, ChevronUp
+  Award, BarChart2, Zap, Percent, Maximize2, X, ChevronDown, ChevronUp,
+  Package
 } from "lucide-react";
 
 export default function AccountDetailPage() {
@@ -16,40 +17,78 @@ export default function AccountDetailPage() {
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  // State untuk Gallery
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
-
-  // State untuk Accordion Kategori
   const [openCategory, setOpenCategory] = useState<string | null>('Koleksi Skin');
+  
+  const [toastMsg, setToastMsg] = useState("");
+  const [isToastVisible, setIsToastVisible] = useState(false);
+
+  const showToast = (message: string) => {
+    setToastMsg(message); setIsToastVisible(true);
+    setTimeout(() => setIsToastVisible(false), 3000);
+  };
 
   useEffect(() => {
     if (id) {
       axios.get(`http://localhost:3000/accounts/${id}`)
         .then((res) => {
-          setAccount(res.data.data);
+          // Memastikan data yang masuk benar-benar objek, bukan undefined
+          setAccount(res.data.data || null);
           setLoading(false);
         })
         .catch((err) => {
           console.error(err);
-          alert("Akun tidak ditemukan!");
-          router.push("/");
+          // Menghapus router.push dari sini untuk mencegah Next.js Error
+          setAccount(null); 
+          setLoading(false);
         });
     }
-  }, [id, router]);
+  }, [id]);
 
   const handleAddToCart = () => {
-    const currentCart = JSON.parse(localStorage.getItem("johen-cart") || "[]");
+    const isLoggedIn = localStorage.getItem("sb-token");
+    if (!isLoggedIn) {
+      alert("Kamu harus login terlebih dahulu untuk belanja!");
+      router.push("/login"); // Lempar ke halaman login
+      return;
+    }
+
+    if (!account) return;
+    const userEmail = localStorage.getItem("user-email");
+    const cartKey = userEmail ? `johen-cart-${userEmail}` : "johen-cart-guest";
+    
+    const currentCart = JSON.parse(localStorage.getItem(cartKey) || "[]");
     const isExist = currentCart.some((item: any) => item.id === account.id);
     if (isExist) {
-      alert("Akun ini sudah ada di dalam keranjang belanjamu!");
+      showToast("Akun ini sudah ada di dalam keranjang belanjamu!");
       return;
     }
     const cartItem = { id: account.id, name: account.title, category: account.games?.name || 'Akun Game', price: account.final_price };
     currentCart.push(cartItem);
-    localStorage.setItem("johen-cart", JSON.stringify(currentCart));
+    localStorage.setItem(cartKey, JSON.stringify(currentCart));
     window.dispatchEvent(new Event("cartUpdated"));
-    alert("Berhasil menambahkan akun ke keranjang!");
+    showToast("Berhasil menambahkan akun ke keranjang!");
+  };
+
+  const handleBeliSekarang = () => {
+    const isLoggedIn = localStorage.getItem("sb-token"); 
+    
+    if (!isLoggedIn) {
+      alert("Kamu harus login terlebih dahulu untuk belanja!");
+      router.push("/login"); // Lempar ke halaman login
+      return;
+    }
+    
+    if (!account) return;
+    const checkoutItem = { 
+      id: account.id, 
+      name: account.title, 
+      category: account.games?.name || 'Akun Game', 
+      price: account.final_price 
+    };
+    localStorage.setItem("checkout-item", JSON.stringify(checkoutItem));
+    router.push("/checkout"); 
   };
 
   if (loading) return (
@@ -58,15 +97,22 @@ export default function AccountDetailPage() {
     </div>
   );
 
+  // Jika akun kosong/gagal dimuat, UI dialihkan dengan aman ke sini
+  if (!account) return (
+    <div className="min-h-[80vh] flex flex-col items-center justify-center text-white">
+      <h2 className="text-2xl font-bold mb-2">Akun Tidak Ditemukan</h2>
+      <p className="text-gray-400 mb-6">Mungkin akun ini sudah dihapus atau terjual.</p>
+      <button onClick={() => router.push("/")} className="bg-[var(--color-johen-cyan)] text-[#0A0A1A] font-bold px-6 py-2 rounded-lg transition hover:bg-[#22D3EE]">Kembali ke Beranda</button>
+    </div>
+  );
+
   const details = account.account_details || {};
   const rawSkins = details.skins || [];
   
-  // Dummy image fallback jika admin tidak mengisi gambar
   const images = details.images && details.images.length > 0 
     ? details.images 
     : ['https://placehold.co/800x500/12122A/00C8F0?text=No+Image+Provided'];
 
-  // --- LOGIKA PENGELOMPOKAN & SORTING SKIN ---
   const skinOrder = ['Legend Limit', 'Legend Shop', 'Grand', 'Exquisite', 'Deluxe'];
   const itemOrder = ['Efek Recall Limited', 'Avatar Border Limited'];
 
@@ -85,10 +131,8 @@ export default function AccountDetailPage() {
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-12">
-        {/* ================= LEFT SIDE: VISUAL DISPLAY ================= */}
         <div className="lg:col-span-7 space-y-6">
           <FadeIn>
-            {/* Main Hero Slider */}
             <div className="bg-[#0A0A1A] aspect-[16/10] rounded-2xl border border-white/5 relative overflow-hidden group shadow-2xl">
               <img 
                 src={images[activeImageIndex]} 
@@ -103,11 +147,10 @@ export default function AccountDetailPage() {
                 <Maximize2 size={20} />
               </button>
               <div className="absolute top-4 left-4 bg-[#05050D]/80 backdrop-blur px-3 py-1 rounded-md border border-white/10 text-[10px] font-bold text-gray-400 tracking-widest">
-                #{account.id.substring(0,8)}
+                #{account?.id?.substring(0,8)}
               </div>
             </div>
 
-            {/* Thumbnail Navigation */}
             {images.length > 1 && (
               <div className="flex gap-3 mt-4 overflow-x-auto pb-2 custom-scrollbar">
                 {images.map((img: string, idx: number) => (
@@ -123,14 +166,12 @@ export default function AccountDetailPage() {
             )}
           </FadeIn>
 
-          {/* GALERI ITEM (ACCORDION) */}
           <FadeIn delay={0.1}>
             <div className="bg-[#12122A]/40 border border-white/5 rounded-2xl overflow-hidden">
               <div className="p-5 border-b border-white/5 bg-[#12122A]">
                 <h3 className="text-sm font-black uppercase tracking-wider text-white">Detail Koleksi Aset</h3>
               </div>
 
-              {/* Accordion: Koleksi Skin */}
               <div className="border-b border-white/5">
                 <button 
                   onClick={() => setOpenCategory(openCategory === 'Koleksi Skin' ? null : 'Koleksi Skin')}
@@ -159,7 +200,6 @@ export default function AccountDetailPage() {
                 )}
               </div>
 
-              {/* Accordion: Item Langka */}
               <div>
                 <button 
                   onClick={() => setOpenCategory(openCategory === 'Item Langka' ? null : 'Item Langka')}
@@ -191,15 +231,33 @@ export default function AccountDetailPage() {
           </FadeIn>
         </div>
 
-        {/* ================= RIGHT SIDE: SPECIFICATIONS ================= */}
-        {/* (Bagian Kanan ini sama seperti sebelumnya, menampilkan Rank, Emblem, Harga, dsb) */}
         <div className="lg:col-span-5 space-y-6">
           <FadeIn direction="left">
             <div className="bg-[#12122A]/60 border border-white/5 rounded-2xl p-6 mb-6">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[var(--color-johen-cyan)]/10 border border-[var(--color-johen-cyan)]/20 text-[10px] font-black text-[var(--color-johen-cyan)] tracking-widest uppercase mb-3">{account.games?.name}</div>
-              <h1 className="text-xl md:text-2xl font-black text-white leading-tight mb-2">{account.title}</h1>
-              <div className="flex items-center gap-1.5 text-xs text-green-400 font-bold"><ShieldCheck size={16} /> Garansi Aman Sepaket Anti-Hackback</div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[var(--color-johen-cyan)]/10 border border-[var(--color-johen-cyan)]/20 text-[10px] font-black text-[var(--color-johen-cyan)] tracking-widest uppercase mb-3">{account?.games?.name}</div>
+              <h1 className="text-xl md:text-2xl font-black text-white leading-tight mb-2">{account?.title}</h1>
+              <div className={`flex items-center gap-1.5 text-xs font-bold mt-2 ${
+  account.status === 'sold'
+    ? 'text-red-400'
+    : 'text-gray-400'
+}`}>
+  <Package size={16} />
+
+  {account.status === 'sold'
+    ? 'Akun Sudah Terjual'
+    : 'Stok Tersedia: 1 (Akun Unik)'}
+</div>
             </div>
+            {/* --- BLOK DESKRIPSI TAMBAHAN --- */}
+            {account.account_details?.description && (
+              <div className="mt-6 p-5 bg-white/5 border border-white/10 rounded-xl relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--color-johen-cyan)]"></div>
+                <h3 className="text-xs font-bold text-[var(--color-johen-cyan)] uppercase tracking-widest mb-2">Catatan Tambahan</h3>
+                <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">
+                  {account.account_details.description}
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="bg-[#12122A]/30 border border-white/5 p-4 rounded-xl">
                 <div className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-1"><Award size={12}/> Rank Tertinggi</div>
@@ -223,7 +281,7 @@ export default function AccountDetailPage() {
               <div className="flex justify-between items-center mb-6 relative z-10">
                 <div>
                   <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-0.5">Total Harga Akun</p>
-                  <p className="text-3xl font-black text-[var(--color-johen-cyan)]">Rp {Number(account.final_price).toLocaleString('id-ID')}</p>
+                  <p className="text-3xl font-black text-[var(--color-johen-cyan)]">Rp {Number(account?.final_price || 0).toLocaleString('id-ID')}</p>
                 </div>
                 {details.total_collection_points > 0 && (
                   <div className="text-right">
@@ -233,21 +291,55 @@ export default function AccountDetailPage() {
                 )}
               </div>
               <div className="space-y-3 relative z-10">
-                <button onClick={handleAddToCart} className="w-full bg-white/5 hover:bg-white/10 text-white font-bold py-3 rounded-xl border border-white/10 transition flex items-center justify-center gap-2 text-sm"><ShoppingCart size={18} /> TAMBAH KE KERANJANG</button>
-                <button className="w-full bg-[var(--color-johen-cyan)] hover:bg-[#22D3EE] text-[#0A0A1A] font-black py-3.5 rounded-xl transition text-sm tracking-wide uppercase">BELI SEKARANG</button>
-              </div>
+
+  <button
+    onClick={handleAddToCart}
+    disabled={account.status === 'sold'}
+    className={`w-full font-bold py-3 rounded-xl border transition flex items-center justify-center gap-2 text-sm ${
+      account.status === 'sold'
+        ? 'bg-gray-800 text-gray-500 cursor-not-allowed border-white/5'
+        : 'bg-white/5 hover:bg-white/10 text-white border-white/10'
+    }`}
+  >
+    <ShoppingCart size={18} />
+    {account.status === 'sold'
+      ? 'AKUN SUDAH TERJUAL'
+      : 'TAMBAH KE KERANJANG'}
+  </button>
+
+  <button
+    onClick={handleBeliSekarang}
+    disabled={account.status === 'sold'}
+    className={`w-full py-3.5 rounded-xl transition text-sm tracking-wide uppercase font-black ${
+      account.status === 'sold'
+        ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+        : 'bg-[var(--color-johen-cyan)] hover:bg-[#22D3EE] text-[#0A0A1A]'
+    }`}
+  >
+    {account.status === 'sold'
+      ? 'STOK HABIS (SOLD OUT)'
+      : 'BELI SEKARANG'}
+  </button>
+
+</div>
             </div>
           </FadeIn>
         </div>
       </div>
 
-      {/* --- MODAL ZOOM GAMBAR --- */}
       {isZoomOpen && (
         <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
           <button onClick={() => setIsZoomOpen(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white transition"><X size={32} /></button>
           <img src={images[activeImageIndex]} className="max-w-full max-h-[90vh] object-contain rounded-xl" alt="Zoomed View" />
         </div>
       )}
+      
+      <div className={`fixed top-24 left-1/2 -translate-x-1/2 z-[100] transition-all duration-500 transform ${isToastVisible ? 'translate-y-0 opacity-100' : '-translate-y-8 opacity-0 pointer-events-none'}`}>
+        <div className="px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 backdrop-blur-md bg-[var(--color-johen-cyan)]/90 border border-[var(--color-johen-cyan)] text-[#0A0A1A]">
+          <ShoppingCart size={18} />
+          <span className="text-sm font-bold tracking-wide">{toastMsg}</span>
+        </div>
+      </div>
     </div>
   );
 }

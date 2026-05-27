@@ -5,6 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import FadeIn from "@/components/FadeIn";
 import { Gamepad2, ArrowLeft, Diamond, Zap, Search, UserCheck, ShieldCheck, CheckCircle2, Plus, Minus, Tag, AlertTriangle, Info, CheckCircle, Loader2 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = "https://uehkjsmiyyfvuyblwzau.supabase.co"; 
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlaGtqc21peXlmdnV5Ymx3emF1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTI3MTI0MywiZXhwIjoyMDk0ODQ3MjQzfQ.ukwQf7Ch4_5bs_yFTu_s1mGHhYPKVyKorn55iwINRjw";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function TopupGamePage() {
   const { id } = useParams();
@@ -37,6 +42,13 @@ export default function TopupGamePage() {
   const [isChecking, setIsChecking] = useState(false);
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
+  // --- REAL-TIME VALIDATION STATES ---
+  const [errors, setErrors] = useState<any>({});
+  const [voucherInput, setVoucherInput] = useState("");
+  const [appliedVoucher, setAppliedVoucher] = useState<any>(null);
+  const [voucherMsg, setVoucherMsg] = useState({ text: "", isError: false });
+  const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
+
   useEffect(() => {
     if (id) {
       Promise.all([
@@ -49,17 +61,40 @@ export default function TopupGamePage() {
         setGame(foundGame); setPackages(resPackages.data.data || []); setLoading(false);
       }).catch((err) => { console.error(err); router.push("/"); });
     }
+    // --- PENANGKAP AUTO-FILL NO WA ---
+    const savedPhone = localStorage.getItem("user-phone");
+    if (savedPhone && savedPhone !== "undefined" && savedPhone !== "") {
+      let cleanPhone = savedPhone;
+      if (cleanPhone.startsWith("62")) cleanPhone = cleanPhone.slice(2);
+      else if (cleanPhone.startsWith("0")) cleanPhone = cleanPhone.slice(1);
+      setWhatsapp(cleanPhone); // setWhatsapp untuk top-up
+    }
   }, [id, router]);
 
+  // Real-time Validation Effect
+  useEffect(() => {
+    const newErrors: any = {};
+    if (zoneId && (zoneId.length < 5 || zoneId.length > 15)) newErrors.zoneId = "User ID harus 5-15 angka.";
+    if (game?.input_type === 'id_server' && serverId && (serverId.length < 4 || serverId.length > 6)) newErrors.serverId = "Server ID harus 4-6 angka.";
+    if (whatsapp && (whatsapp.length < 9 || whatsapp.length > 14)) newErrors.whatsapp = "No. WhatsApp harus 9-14 angka.";
+    setErrors(newErrors);
+  }, [zoneId, serverId, whatsapp, game]);
+
+  // Validation Checkers for Buttons
+  const isAccountIdValid = zoneId.length >= 5 && zoneId.length <= 15 && (game?.input_type !== 'id_server' || (serverId.length >= 4 && serverId.length <= 6));
+  const isCheckoutReady = isAccountIdValid && whatsapp.length >= 9 && whatsapp.length <= 14 && selectedPackage;
+
   const handleSelectPackage = (pkg: any) => {
-    if (!zoneId) return showToast("Harap isi User ID kamu terlebih dahulu!", "error");
-    if (game.input_type === 'id_server' && !serverId) return showToast("Harap isi Server ID kamu terlebih dahulu!", "error");
+    // Validasi: Cegah klik jika ID belum valid
+    if (!isAccountIdValid) {
+      showToast("Harap isi User ID dan Server dengan benar terlebih dahulu!", "error");
+      return;
+    }
+    // Jika valid, baru set paketnya
     setSelectedPackage(selectedPackage?.id === pkg.id ? null : pkg);
   };
 
   const handleCheckNickname = () => {
-    if (!zoneId) return showToast("Isi User ID dulu ya!", "error");
-    if (game.input_type === 'id_server' && !serverId) return showToast("Isi Server ID dulu ya!", "error");
     setIsChecking(true); setNickname(null);
     setTimeout(() => { setNickname("JOHEN_SLAYER_99"); setIsChecking(false); }, 1500);
   };
@@ -74,12 +109,6 @@ export default function TopupGamePage() {
   };
 
   const handleCheckout = async () => {
-    // VALIDASI KETAT
-    if(!zoneId || zoneId.length < 5 || zoneId.length > 15) return showToast("User ID tidak valid (5-15 angka)!", "error");
-    if(game?.input_type === 'id_server' && (!serverId || serverId.length < 4 || serverId.length > 6)) return showToast("Server ID tidak valid (4-6 angka)!", "error");
-    if(!selectedPackage) return showToast("Pilih nominal top-up terlebih dahulu!", "error");
-    if(!whatsapp || whatsapp.length < 9 || whatsapp.length > 14) return showToast("Nomor WhatsApp tidak valid (9-14 angka)!", "error");
-
     setIsCheckoutLoading(true);
     showToast(`Membuat invoice pesanan...`, "info");
 
@@ -89,7 +118,6 @@ export default function TopupGamePage() {
         product_ref_id: selectedPackage.id,
         customer_name: nickname || "Guest",
         customer_phone: whatsapp,
-        // Menyisipkan nama produk dan qty agar bisa dibaca di Invoice nanti
         game_credentials: { id: zoneId, server: serverId || "", product_name: selectedPackage.name, quantity: quantity },
         voucher_code: promoDiscount > 0 ? promoCode : undefined
       };
@@ -111,7 +139,44 @@ export default function TopupGamePage() {
   };
 
   const subtotal = selectedPackage ? Number(selectedPackage.price) * quantity : 0;
-  const totalPayment = Math.max(0, subtotal - promoDiscount);
+  const voucherDiscountAmount = appliedVoucher ? (subtotal * appliedVoucher.discount_percent) / 100 : 0;
+  const totalPayment = Math.max(0, subtotal - promoDiscount - voucherDiscountAmount);
+
+  const handleCekVoucher = async () => {
+    if (!voucherInput) return;
+    setIsCheckingVoucher(true);
+    setVoucherMsg({ text: "", isError: false });
+
+    try {
+      const { data, error } = await supabase
+        .from('vouchers')
+        .select('*')
+        .eq('code', voucherInput.toUpperCase())
+        .single();
+
+      if (error || !data) {
+        setVoucherMsg({ text: "Kode voucher tidak ditemukan.", isError: true });
+        return;
+      }
+
+      if (data.current_usage >= data.max_usage) {
+        setVoucherMsg({ text: "Kuota voucher ini sudah habis (Limit).", isError: true });
+        return;
+      }
+
+      if (new Date(data.expired_at) < new Date()) {
+        setVoucherMsg({ text: "Masa berlaku voucher sudah kadaluarsa.", isError: true });
+        return;
+      }
+
+      setAppliedVoucher(data);
+      setVoucherMsg({ text: `Voucher diskon ${data.discount_percent}% berhasil diterapkan!`, isError: false });
+    } catch (err) {
+      setVoucherMsg({ text: "Terjadi kesalahan sistem.", isError: true });
+    } finally {
+      setIsCheckingVoucher(false);
+    }
+  };
 
   if (loading) return <div className="min-h-[80vh] flex items-center justify-center"><Loader2 className="w-12 h-12 text-[var(--color-johen-magenta)] animate-spin" /></div>;
 
@@ -146,12 +211,20 @@ export default function TopupGamePage() {
               <h2 className="text-xl font-black flex items-center gap-3 text-white mb-4"><span className="w-8 h-8 rounded-xl bg-[var(--color-johen-cyan)]/20 text-[var(--color-johen-cyan)] flex items-center justify-center text-sm border border-[var(--color-johen-cyan)]/30">1</span>Masukkan Data Akun</h2>
               <div className="bg-[#12122A] p-6 rounded-2xl border border-white/5 shadow-lg">
                 <div className="flex flex-col md:flex-row gap-5 mb-4">
-                  <div className="flex-1"><input type="number" value={zoneId} onChange={e => setZoneId(e.target.value)} placeholder="Ketikan User ID" className="w-full bg-[#0A0A1A] border border-white/10 rounded-xl p-4 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition" /></div>
-                  {game.input_type === 'id_server' && (<div className="flex-1"><input type="number" value={serverId} onChange={e => setServerId(e.target.value)} placeholder="Ketikan Server ID" className="w-full bg-[#0A0A1A] border border-white/10 rounded-xl p-4 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition" /></div>)}
+                  <div className="flex-1">
+                    <input type="number" value={zoneId} onChange={e => setZoneId(e.target.value)} placeholder="Ketikkan User ID" className={`w-full bg-[#0A0A1A] border ${errors.zoneId ? 'border-red-500' : 'border-white/10'} rounded-xl p-4 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition`} />
+                    {errors.zoneId && <p className="text-red-500 text-[10px] mt-1.5 font-bold flex items-center gap-1"><AlertTriangle size={10} /> {errors.zoneId}</p>}
+                  </div>
+                  {game.input_type === 'id_server' && (
+                    <div className="flex-1">
+                      <input type="number" value={serverId} onChange={e => setServerId(e.target.value)} placeholder="Ketikkan Server ID" className={`w-full bg-[#0A0A1A] border ${errors.serverId ? 'border-red-500' : 'border-white/10'} rounded-xl p-4 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition`} />
+                      {errors.serverId && <p className="text-red-500 text-[10px] mt-1.5 font-bold flex items-center gap-1"><AlertTriangle size={10} /> {errors.serverId}</p>}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between border-t border-white/5 pt-4 mt-2">
                   <div className="flex items-center gap-3">{isChecking ? <span className="text-xs text-[var(--color-johen-cyan)] animate-pulse font-bold flex items-center gap-2"><Search size={14}/> Mengecek Database...</span> : nickname ? <span className="text-sm text-green-400 font-bold flex items-center gap-2"><UserCheck size={16}/> Nickname: <span className="text-white">{nickname}</span></span> : <span className="text-xs text-gray-500">*Pastikan ID sudah benar.</span>}</div>
-                  <button onClick={handleCheckNickname} disabled={isChecking} className="bg-white/5 hover:bg-white/10 text-white text-xs font-bold px-4 py-2 rounded-lg transition border border-white/10">Cek Nickname</button>
+                  <button onClick={handleCheckNickname} disabled={isChecking || !isAccountIdValid} className="bg-white/5 hover:bg-white/10 text-white disabled:opacity-30 disabled:hover:bg-white/5 text-xs font-bold px-4 py-2 rounded-lg transition border border-white/10">Cek Nickname</button>
                 </div>
               </div>
             </div>
@@ -183,42 +256,103 @@ export default function TopupGamePage() {
               </div>
             </div>
 
-            {/* STEP 4: PROMO */}
-            <div className="bg-transparent mt-12">
-              <h2 className="text-xl font-black flex items-center gap-3 text-white mb-4"><span className="w-8 h-8 rounded-xl bg-[var(--color-johen-cyan)]/20 text-[var(--color-johen-cyan)] flex items-center justify-center text-sm border border-[var(--color-johen-cyan)]/30">4</span>Kode Promo (Opsional)</h2>
-              <div className="bg-[#12122A] p-4 rounded-2xl border border-white/5 shadow-lg flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1"><Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} /><input type="text" value={promoCode} onChange={e => setPromoCode(e.target.value)} placeholder="Masukkan kode promo..." className="w-full bg-[#0A0A1A] border border-white/10 rounded-xl p-4 pl-11 text-sm focus:border-[var(--color-johen-cyan)] outline-none uppercase" /></div>
-                <button onClick={handleApplyPromo} className="bg-white/10 hover:bg-white/20 text-white font-bold px-8 py-4 rounded-xl transition">Gunakan</button>
-              </div>
-            </div>
+            {/* STEP 4: VOUCHER SUPABASE */}
+<div className="bg-transparent mt-12">
+  <h2 className="text-xl font-black flex items-center gap-3 text-white mb-4">
+    <span className="w-8 h-8 rounded-xl bg-[var(--color-johen-cyan)]/20 text-[var(--color-johen-cyan)] flex items-center justify-center text-sm border border-[var(--color-johen-cyan)]/30">4</span>
+    Kode Voucher (Opsional)
+  </h2>
+  <div className="bg-[#12122A] p-4 rounded-2xl border border-white/5 shadow-lg">
+    <div className="flex gap-2">
+      <input
+        type="text"
+        value={voucherInput}
+        onChange={(e) => setVoucherInput(e.target.value)}
+        disabled={!!appliedVoucher}
+        placeholder="Masukkan kode voucher..."
+        className="flex-1 bg-[#0A0A1A] border border-white/10 rounded-xl p-3 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition text-white uppercase"
+      />
+      {!appliedVoucher ? (
+        <button
+          type="button"
+          onClick={handleCekVoucher}
+          disabled={isCheckingVoucher || !voucherInput}
+          className="bg-white/10 hover:bg-white/20 text-white px-5 rounded-xl font-bold text-xs transition disabled:opacity-50"
+        >
+          {isCheckingVoucher ? "Cek..." : "Terapkan"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => { setAppliedVoucher(null); setVoucherInput(""); setVoucherMsg({ text: "", isError: false }); }}
+          className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-5 rounded-xl font-bold text-xs transition"
+        >
+          Batal
+        </button>
+      )}
+    </div>
+    {voucherMsg.text && (
+      <p className={`text-[10px] mt-2 font-bold ${voucherMsg.isError ? 'text-red-400' : 'text-green-400'}`}>
+        {voucherMsg.text}
+      </p>
+    )}
+  </div>
+</div>
 
             {/* STEP 5: KONTAK */}
             <div className="bg-transparent mt-12 mb-20">
               <h2 className="text-xl font-black flex items-center gap-3 text-white mb-4"><span className="w-8 h-8 rounded-xl bg-[var(--color-johen-cyan)]/20 text-[var(--color-johen-cyan)] flex items-center justify-center text-sm border border-[var(--color-johen-cyan)]/30">5</span>Detail Kontak</h2>
               <div className="bg-[#12122A] p-6 rounded-2xl border border-white/5 shadow-lg">
-                <div className="flex"><span className="bg-[#0A0A1A] border border-white/10 border-r-0 rounded-l-xl px-4 flex items-center justify-center text-sm font-bold text-gray-400">+62</span><input type="number" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="81234567890" className="flex-1 bg-[#0A0A1A] border border-white/10 rounded-r-xl p-4 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition" /></div>
+                <div className="flex">
+                  <span className="bg-[#0A0A1A] border border-white/10 border-r-0 rounded-l-xl px-4 flex items-center justify-center text-sm font-bold text-gray-400">+62</span>
+                  <input type="number" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="81234567890" className={`flex-1 bg-[#0A0A1A] border ${errors.whatsapp ? 'border-red-500' : 'border-white/10'} rounded-r-xl p-4 text-sm focus:border-[var(--color-johen-cyan)] outline-none transition`} />
+                </div>
+                {errors.whatsapp && <p className="text-red-500 text-[10px] mt-1.5 font-bold flex items-center gap-1"><AlertTriangle size={10} /> {errors.whatsapp}</p>}
               </div>
             </div>
           </FadeIn>
         </div>
 
-        {/* STICKY CHECKOUT */}
+        {/* STICKY CHECKOUT & GARANSI LAYANAN */}
         <div className="lg:col-span-4 h-fit lg:sticky lg:top-24 space-y-6">
           <FadeIn direction="left">
-            <div className="bg-[#0A0A1A] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="bg-[#0A0A1A] border border-white/10 rounded-3xl overflow-hidden shadow-2xl mb-6">
               <div className="p-6 border-b border-white/5"><h3 className="text-base font-black text-white flex items-center justify-between mb-1">Detail Pembayaran{selectedPackage && <span className="bg-[var(--color-johen-cyan)]/20 text-[var(--color-johen-cyan)] text-[10px] px-2 py-1 rounded">Qty: {quantity}x</span>}</h3></div>
               <div className="p-6 bg-[#12122A]/50 space-y-4">
                 <div className="flex justify-between items-start"><span className="text-xs font-bold text-gray-400">Item Produk</span><span className="text-sm font-bold text-white text-right max-w-[60%]">{selectedPackage ? selectedPackage.name : '-'}</span></div>
                 <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-400">ID Tujuan</span><span className="text-sm font-bold text-white">{zoneId ? `${zoneId} ${serverId ? `(${serverId})` : ''}` : '-'}</span></div>
                 <div className="flex justify-between items-center"><span className="text-xs font-bold text-gray-400">Nickname</span><span className="text-sm font-bold text-green-400">{nickname ? nickname : '-'}</span></div>
                 {promoDiscount > 0 && (<div className="flex justify-between items-center pt-2 border-t border-white/5"><span className="text-xs font-bold text-[var(--color-johen-magenta)]">Diskon Promo</span><span className="text-sm font-bold text-[var(--color-johen-magenta)]">- Rp {promoDiscount.toLocaleString('id-ID')}</span></div>)}
+                {voucherDiscountAmount > 0 && (
+  <div className="flex justify-between items-center pt-2 border-t border-white/5">
+    <span className="text-xs font-bold text-[var(--color-johen-cyan)]">Diskon Voucher ({appliedVoucher.discount_percent}%)</span>
+    <span className="text-sm font-bold text-[var(--color-johen-cyan)]">- Rp {voucherDiscountAmount.toLocaleString('id-ID')}</span>
+  </div>
+)}
               </div>
               <div className="p-6 border-t border-white/5 bg-[#12122A]">
                 <div className="flex justify-between items-end mb-5"><p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Total Bayar</p><p className="text-3xl font-black text-[var(--color-johen-cyan)]">Rp {totalPayment.toLocaleString('id-ID')}</p></div>
-                <button onClick={handleCheckout} disabled={!selectedPackage || !whatsapp || isCheckoutLoading} className="w-full bg-[var(--color-johen-cyan)] hover:bg-[#22D3EE] disabled:opacity-30 text-[#0A0A1A] font-black py-4 rounded-xl transition duration-300 uppercase tracking-widest shadow-[0_0_20px_rgba(0,200,240,0.2)] flex justify-center items-center gap-2">
+                <button onClick={handleCheckout} disabled={!isCheckoutReady || isCheckoutLoading} className="w-full bg-[var(--color-johen-cyan)] hover:bg-[#22D3EE] disabled:opacity-30 text-[#0A0A1A] font-black py-4 rounded-xl transition duration-300 uppercase tracking-widest shadow-[0_0_20px_rgba(0,200,240,0.2)] flex justify-center items-center gap-2">
                   {isCheckoutLoading ? <Loader2 size={18} className="animate-spin"/> : <Zap size={18} />} {isCheckoutLoading ? 'Memproses...' : 'Lanjutkan Pembayaran'}
                 </button>
               </div>
+            </div>
+
+            {/* Custom Info Box (Restored) */}
+            <div className="bg-[#12122A] border border-white/5 rounded-2xl p-5">
+               <h4 className="text-xs font-black text-gray-300 uppercase tracking-widest mb-3 flex items-center gap-2">
+                 <ShieldCheck size={16} className="text-[var(--color-johen-magenta)]" /> Garansi Layanan
+               </h4>
+               <ul className="text-xs text-gray-500 space-y-2">
+                 <li className="flex items-start gap-2">
+                   <span className="text-[var(--color-johen-cyan)] font-bold">•</span>
+                   Proses top-up berjalan instan 1-3 detik setelah pembayaran berhasil dikonfirmasi.
+                 </li>
+                 <li className="flex items-start gap-2">
+                   <span className="text-[var(--color-johen-cyan)] font-bold">•</span>
+                   Diamond legal 100% langsung dari publisher resmi, anti minus.
+                 </li>
+               </ul>
             </div>
           </FadeIn>
         </div>
