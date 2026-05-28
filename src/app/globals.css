@@ -2,24 +2,212 @@
 @import "tailwindcss";
 
 @theme {
+  /* ===== JOHEN GAMING COLOR SYSTEM ===== */
+
   /* Warna Utama (Primary) */
   --color-johen-cyan: #00C8F0;
-  --color-johen-violet: #7C3AED;
-  --color-johen-magenta: #D946EF;
-  --color-johen-blue: #3B82F6;
+  --color-johen-cyan-light: #22D3EE;
+  --color-johen-cyan-dim: rgba(0, 200, 240, 0.15);
+  --color-johen-cyan-border: rgba(0, 200, 240, 0.3);
 
-  /* Warna Netral & Background (Paket 01) */
-  --color-johen-space: #0A0A1A;
+  --color-johen-violet: #7C3AED;
+  --color-johen-violet-light: #A855F7;
+  --color-johen-violet-dim: rgba(124, 58, 237, 0.15);
+  --color-johen-violet-border: rgba(124, 58, 237, 0.3);
+
+  --color-johen-magenta: #D946EF;
+  --color-johen-magenta-light: #F0ABFC;
+  --color-johen-magenta-dim: rgba(217, 70, 239, 0.15);
+  --color-johen-magenta-border: rgba(217, 70, 239, 0.3);
+
+  --color-johen-blue: #3B82F6;
+  --color-johen-blue-dim: rgba(59, 130, 246, 0.15);
+
+  /* Background Layers */
+  --color-johen-space: #05050D;
+  --color-johen-dark: #0A0A1A;
   --color-johen-navy: #12122A;
   --color-johen-indigo: #1E1E3F;
+  --color-johen-surface: #252550;
 
-  /* Warna Aksen & Status */
+  /* Status Colors */
   --color-johen-success: #10B981;
+  --color-johen-success-dim: rgba(16, 185, 129, 0.15);
+  --color-johen-danger: #EF4444;
+  --color-johen-warning: #F59E0B;
+
+  /* Text */
+  --color-johen-text-muted: #6B7280;
+  --color-johen-text-soft: #9CA3AF;
 }
 
-/* Base Styles untuk website */
+/* ===== BASE STYLES ===== */
 body {
   background-color: var(--color-johen-space);
   color: #FFFFFF;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ===== SCROLLBAR CUSTOM ===== */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-johen-violet); border-radius: 99px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--color-johen-cyan); }
+
+/* ===== GLOW UTILITIES ===== */
+.glow-cyan  { box-shadow: 0 0 20px rgba(0, 200, 240, 0.25); }
+.glow-violet { box-shadow: 0 0 20px rgba(124, 58, 237, 0.25); }
+.glow-magenta { box-shadow: 0 0 20px rgba(217, 70, 239, 0.2); }
+
+/* ===== GRADIENT TEXT ===== */
+.gradient-text-johen {
+  background: linear-gradient(135deg, var(--color-johen-cyan), var(--color-johen-magenta));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.gradient-text-violet {
+  background: linear-gradient(135deg, var(--color-johen-violet-light), var(--color-johen-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ===== CARD BASE ===== */
+.johen-card {
+  background: rgba(18, 18, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+}
+.johen-card:hover {
+  border-color: var(--color-johen-cyan-border);
+  box-shadow: 0 8px 32px rgba(0, 200, 240, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ===== BADGE / PILL ===== */
+.badge-cyan {
+  background: var(--color-johen-cyan-dim);
+  border: 1px solid var(--color-johen-cyan-border);
+  color: var(--color-johen-cyan);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  border-radius: 99px;
+}
+.badge-violet {
+  background: var(--color-johen-violet-dim);
+  border: 1px solid var(--color-johen-violet-border);
+  color: var(--color-johen-violet-light);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  border-radius: 99px;
+}
+.badge-magenta {
+  background: var(--color-johen-magenta-dim);
+  border: 1px solid var(--color-johen-magenta-border);
+  color: var(--color-johen-magenta);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 10px;
+  border-radius: 99px;
+}
+
+/* ===== BUTTON PRIMARY ===== */
+.btn-primary {
+  background: var(--color-johen-cyan);
+  color: var(--color-johen-dark);
+  font-weight: 800;
+  padding: 10px 20px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.04em;
+}
+.btn-primary:hover {
+  background: var(--color-johen-cyan-light);
+  box-shadow: 0 0 20px rgba(0, 200, 240, 0.4);
+}
+.btn-secondary {
+  background: var(--color-johen-violet-dim);
+  border: 1px solid var(--color-johen-violet-border);
+  color: var(--color-johen-violet-light);
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+.btn-secondary:hover {
+  background: rgba(124, 58, 237, 0.25);
+  border-color: var(--color-johen-violet-light);
+}
+
+/* ===== INPUT FIELDS ===== */
+.johen-input {
+  background: var(--color-johen-dark);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  color: white;
+  padding: 10px 14px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+.johen-input:focus {
+  outline: none;
+  border-color: var(--color-johen-cyan);
+  box-shadow: 0 0 0 3px rgba(0, 200, 240, 0.1);
+}
+.johen-input::placeholder { color: #4B5563; }
+
+/* ===== TABLE ===== */
+.johen-table thead tr {
+  background: rgba(30, 30, 63, 0.8);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+}
+.johen-table thead th {
+  color: var(--color-johen-cyan);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 14px 20px;
+}
+.johen-table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  transition: background 0.2s;
+}
+.johen-table tbody tr:hover { background: rgba(0, 200, 240, 0.04); }
+
+/* ===== SIDEBAR NAV ACTIVE ===== */
+.sidebar-active-cyan {
+  background: linear-gradient(90deg, rgba(0,200,240,0.15), transparent);
+  border-left: 3px solid var(--color-johen-cyan);
+  color: var(--color-johen-cyan);
+}
+.sidebar-active-violet {
+  background: linear-gradient(90deg, rgba(124,58,237,0.15), transparent);
+  border-left: 3px solid var(--color-johen-violet-light);
+  color: var(--color-johen-violet-light);
+}
+
+/* ===== DIVIDER ===== */
+.johen-divider {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ===== SECTION HEADING ACCENT ===== */
+.section-accent-left {
+  border-left: 3px solid var(--color-johen-cyan);
+  padding-left: 12px;
+}
+.section-accent-magenta {
+  border-left: 3px solid var(--color-johen-magenta);
+  padding-left: 12px;
 }

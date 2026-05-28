@@ -94,6 +94,7 @@ export default function CheckoutPage() {
   
   setIsProcessing(true);
   setErrorMsg("");
+  localStorage.setItem("user-phone", waNumber);
 
   try {
     const loggedInName = localStorage.getItem("user-name") || "Guest";
