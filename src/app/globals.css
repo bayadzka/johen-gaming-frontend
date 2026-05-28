@@ -1,4 +1,5 @@
 /* src/app/globals.css */
+@import url('https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css');
 @import "tailwindcss";
 
 @theme {

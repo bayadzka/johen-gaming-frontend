@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import FadeIn from "@/components/FadeIn";
 import { Search, Gamepad2, ShieldCheck, Flame, ShoppingCart, Lock, Zap, Star } from "lucide-react";
-import PromoCarousel from "@/components/PromoCarousel";
 
 export default function Home() {
   const router = useRouter();
@@ -148,10 +147,6 @@ export default function Home() {
           </div>
         </div>
       </FadeIn>
-      <FadeIn direction="up" delay={0.1}>
-        <PromoCarousel />
-      </FadeIn>
-
       {/* ====== SECTION 1: KATALOG TOP-UP ====== */}
       <FadeIn delay={0.1}>
         <div className="mb-12">
