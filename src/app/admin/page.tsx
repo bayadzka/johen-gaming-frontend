@@ -11,6 +11,8 @@ import {
   AlertTriangle, Ticket
 } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
+import PromoManager from "@/components/PromoManager";
+
 const supabaseUrl = "https://uehkjsmiyyfvuyblwzau.supabase.co"; 
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVlaGtqc21peXlmdnV5Ymx3emF1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTI3MTI0MywiZXhwIjoyMDk0ODQ3MjQzfQ.ukwQf7Ch4_5bs_yFTu_s1mGHhYPKVyKorn55iwINRjw";
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -686,8 +688,11 @@ const [orderGameFilter, setOrderGameFilter] = useState("all");
 
             {/* TAB: MANAJEMEN VOUCHER (MENGGANTIKAN SETTINGS) */}
             {activeTab === "settings" && (
-              <div className="bg-[#12122A]/50 border border-white/5 rounded-2xl overflow-hidden p-6">
-                <div className="flex justify-between items-center mb-6">
+              <div className="space-y-8">
+                {/* --- COMPONENT CAROUSEL DITARUH DI SINI --- */}
+                <PromoManager />
+                <div className="bg-[#12122A]/50 border border-white/5 rounded-2xl overflow-hidden p-6">
+                  <div className="flex justify-between items-center mb-6"></div>
                   <h2 className="text-lg font-black text-white">Daftar Voucher Diskon</h2>
                   <button onClick={() => { setEditVoucherId(null); setVCode(""); setVDiscount(5); setVMaxUsage(50); setVExpiredAt(""); setShowVoucherModal(true); }} className="bg-[var(--color-johen-violet)] hover:bg-[#8B5CF6] text-white px-4 py-2 rounded-lg font-bold text-sm transition flex items-center gap-2">
                     <Plus size={16} /> Buat Voucher
