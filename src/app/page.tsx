@@ -27,6 +27,7 @@ export default function Home() {
 
   const [toastMsg, setToastMsg] = useState("");
   const [isToastVisible, setIsToastVisible] = useState(false);
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const showToast = (message: string) => {
     setToastMsg(message);
@@ -53,10 +54,23 @@ export default function Home() {
       .catch((err) => console.error("Gagal ambil akun:", err));
   }, []);
 
+  // === LOGIKA FILTER GABUNGAN (TAB + PENCARIAN) ===
+  const availableGames = Array.from(new Set(accounts.map((p: any) => p.games?.name))).filter(Boolean);
+
   const filteredGames = games.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const filteredAccounts = accounts.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.games?.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  const availableAccounts = filteredAccounts.filter(a => a.status === 'available');
-  const soldAccounts = filteredAccounts.filter(a => a.status === 'sold');
+
+  const finalFilteredAccounts = accounts.filter((a: any) => {
+    // Cek apakah cocok dengan Tab Game
+    const matchTab = activeFilter === "all" || a.games?.name === activeFilter;
+    // Cek apakah cocok dengan Kolom Pencarian
+    const matchSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                        (a.games?.name || "").toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchTab && matchSearch;
+  });
+
+  const availableAccounts = finalFilteredAccounts.filter((a: any) => a.status === 'available');
+  const soldAccounts = finalFilteredAccounts.filter((a: any) => a.status === 'sold');
 
   const addToCart = (e: React.MouseEvent, product: any) => {
     e.preventDefault();
@@ -80,7 +94,6 @@ export default function Home() {
         <div className="relative rounded-2xl p-6 md:p-12 mb-10 overflow-hidden border border-[var(--color-johen-violet)]/20"
           style={{ background: 'linear-gradient(135deg, #12122A 0%, #1E1E3F 50%, #0D0D2E 100%)' }}>
           
-          {/* Background decorative orbs */}
           <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full pointer-events-none"
             style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%)' }}></div>
           <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full pointer-events-none"
@@ -89,7 +102,6 @@ export default function Home() {
             style={{ background: 'radial-gradient(circle, rgba(217,70,239,0.07) 0%, transparent 70%)' }}></div>
 
           <div className="relative z-10 max-w-2xl">
-            {/* Badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-5"
               style={{ background: 'rgba(0,200,240,0.1)', border: '1px solid rgba(0,200,240,0.3)' }}>
               <ShieldCheck size={13} className="text-[var(--color-johen-cyan)]" />
@@ -106,7 +118,6 @@ export default function Home() {
               Platform top up game tercepat dan marketplace akun terlengkap di Indonesia. Otomatis, murah, dan terpercaya 24 jam.
             </p>
 
-            {/* Stats row */}
             <div className="flex gap-6 mb-8">
               {[
                 { val: '11.500+', label: 'Transaksi' },
@@ -120,7 +131,6 @@ export default function Home() {
               ))}
             </div>
             
-            {/* Search */}
             <div className="relative max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
               <input
@@ -137,16 +147,11 @@ export default function Home() {
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-johen-cyan)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(0,200,240,0.1)'; }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.boxShadow = 'none'; }}
               />
-              {searchQuery && (
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-1 rounded"
-                  style={{ background: 'rgba(0,200,240,0.15)', color: 'var(--color-johen-cyan)' }}>
-                  Mencari...
-                </span>
-              )}
             </div>
           </div>
         </div>
       </FadeIn>
+
       {/* ====== SECTION 1: KATALOG TOP-UP ====== */}
       <FadeIn delay={0.1}>
         <div className="mb-12">
@@ -209,14 +214,42 @@ export default function Home() {
       {/* ====== SECTION 2: MARKETPLACE AKUN ====== */}
       <FadeIn delay={0.2}>
         <div>
-          {/* Section Header */}
-          <div className="flex items-center justify-between mb-6">
+          {/* --- HEADER & FILTER SECTION --- */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-1 h-6 rounded-full" style={{ background: 'var(--color-johen-cyan)', boxShadow: '0 0 10px rgba(0,200,240,0.5)' }}></div>
-              <h2 className="text-lg md:text-xl font-black uppercase tracking-wider text-white">Akun Game Ready</h2>
-              {!loading && availableAccounts.length > 0 && (
-                <span className="badge-cyan">{availableAccounts.length} tersedia</span>
-              )}
+              <div className="w-1.5 h-6 bg-[var(--color-johen-cyan)] rounded-full"></div>
+              <h2 className="text-xl md:text-2xl font-black text-white tracking-wider uppercase">AKUN GAME READY</h2>
+              <span className="bg-[var(--color-johen-cyan)]/10 text-[var(--color-johen-cyan)] px-2.5 py-0.5 rounded-full text-xs font-bold border border-[var(--color-johen-cyan)]/30">
+                {availableAccounts.length} tersedia
+              </span>
+            </div>
+
+            {/* AREA TOMBOL FILTER */}
+            <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 md:pb-0 w-full md:w-auto">
+              <button 
+                onClick={() => setActiveFilter("all")}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  activeFilter === "all" 
+                    ? "bg-[var(--color-johen-cyan)] text-[#0A0A1A] shadow-[0_0_15px_rgba(0,200,240,0.3)]" 
+                    : "bg-[#12122A] text-gray-400 hover:bg-white/10 hover:text-white border border-white/5"
+                }`}
+              >
+                Semua Game
+              </button>
+              
+              {availableGames.map((gameName: any) => (
+                <button 
+                  key={gameName}
+                  onClick={() => setActiveFilter(gameName)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                    activeFilter === gameName 
+                      ? "bg-[var(--color-johen-cyan)] text-[#0A0A1A] shadow-[0_0_15px_rgba(0,200,240,0.3)]" 
+                      : "bg-[#12122A] text-gray-400 hover:bg-white/10 hover:text-white border border-white/5"
+                  }`}
+                >
+                  {gameName}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -231,7 +264,7 @@ export default function Home() {
           ) : availableAccounts.length === 0 ? (
             <div className="text-center py-16 rounded-xl text-sm"
               style={{ border: '1px dashed rgba(255,255,255,0.08)', background: 'rgba(18,18,42,0.3)', color: '#6B7280' }}>
-              {searchQuery ? `Tidak ada akun ready yang cocok dengan "${searchQuery}".` : "Belum ada akun game yang ter-posting."}
+              {searchQuery || activeFilter !== "all" ? `Tidak ada akun ready untuk filter yang dipilih.` : "Belum ada akun game yang ter-posting."}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
@@ -254,7 +287,6 @@ export default function Home() {
                     (e.currentTarget as HTMLElement).style.boxShadow = 'none';
                   }}
                 >
-                  {/* Image area */}
                   <div className="h-36 rounded-xl mb-4 flex items-center justify-center border border-white/5 relative overflow-hidden"
                     style={{ background: 'linear-gradient(135deg, #1E1E3F, #0A0A1A)' }}>
                     {account.account_details?.images?.[0] ? (
@@ -262,12 +294,10 @@ export default function Home() {
                     ) : (
                       <Gamepad2 size={36} className="text-gray-600 group-hover:text-[var(--color-johen-cyan)] transition-all duration-300" />
                     )}
-                    {/* Top-right glow badge */}
                     <div className="absolute top-2 right-2 w-2 h-2 rounded-full animate-pulse"
                       style={{ background: 'var(--color-johen-cyan)', boxShadow: '0 0 8px var(--color-johen-cyan)' }}></div>
                   </div>
 
-                  {/* Game badge */}
                   <span className="badge-cyan mb-2 w-fit">{account.games?.name}</span>
 
                   <h3 className="font-bold text-sm md:text-base text-gray-200 line-clamp-2 mb-1 group-hover:text-white transition flex-grow">
@@ -281,7 +311,6 @@ export default function Home() {
                     </p>
                   )}
 
-                  {/* Price & cart */}
                   <div className="flex items-end justify-between pt-3 mt-auto"
                     style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     <div>
