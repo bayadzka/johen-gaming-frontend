@@ -25,22 +25,38 @@ export default function CheckoutPage() {
   const [isCheckingVoucher, setIsCheckingVoucher] = useState(false);
 
   useEffect(() => {
-    // Mengecek memori kasir ('checkout-item'), bukan keranjang ('johen-cart')
-    const savedCheckout = localStorage.getItem("checkout-item");
-    if (savedCheckout) {
-      setCheckoutItem(JSON.parse(savedCheckout));
-    } else {
-      router.push("/"); // Kalau kosong, lempar balik ke beranda
+  const savedCheckout = localStorage.getItem("checkout-item");
+  if (savedCheckout) {
+    setCheckoutItem(JSON.parse(savedCheckout));
+  } else {
+    router.push("/"); 
+  }
+
+  // PENANGKAP WA LANGSUNG DARI DATABASE
+  const fetchPhoneFromDB = async () => {
+    const userEmail = localStorage.getItem("user-email");
+    if (userEmail) {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('phone')
+          .eq('email', userEmail)
+          .single();
+
+        if (data && data.phone) {
+          let cleanPhone = data.phone;
+          if (cleanPhone.startsWith("62")) cleanPhone = cleanPhone.slice(2);
+          else if (cleanPhone.startsWith("0")) cleanPhone = cleanPhone.slice(1);
+          setWaNumber(cleanPhone);
+        }
+      } catch (err) {
+        console.error("Gagal ambil WA dari Supabase:", err);
+      }
     }
-    // --- PENANGKAP AUTO-FILL NO WA ---
-    const savedPhone = localStorage.getItem("user-phone");
-    if (savedPhone && savedPhone !== "undefined" && savedPhone !== "") {
-      let cleanPhone = savedPhone;
-      if (cleanPhone.startsWith("62")) cleanPhone = cleanPhone.slice(2);
-      else if (cleanPhone.startsWith("0")) cleanPhone = cleanPhone.slice(1);
-      setWaNumber(cleanPhone); // setWaNumber untuk checkout
-    }
-  }, [router]);
+  };
+  fetchPhoneFromDB();
+}, [router]);
+
   const handleCekVoucher = async () => {
     if (!voucherInput) return;
     setIsCheckingVoucher(true);
@@ -87,60 +103,55 @@ export default function CheckoutPage() {
   const finalPriceToPay = basePrice - discountAmount;
 
   const handleBuatPesanan = async () => {
-    if (waNumber.length < 9) {
-      setErrorMsg("Nomor WhatsApp tidak valid. Minimal 9 angka.");
-      return;
-    }
+  if (waNumber.length < 9) {
+    setErrorMsg("Nomor WhatsApp tidak valid. Minimal 9 angka.");
+    return;
+  }
+  
+  setIsProcessing(true);
+  setErrorMsg("");
+
+  try {
+    const loggedInName = localStorage.getItem("user-name") || "Guest";
+    const loggedInEmail = localStorage.getItem("user-email") || "";
+    const payload = {
+      order_type: 'account',
+      product_ref_id: checkoutItem.id,
+      customer_name: loggedInName, 
+      customer_phone: waNumber,
+      customer_email: loggedInEmail,
+      game_credentials: { 
+        product_name: checkoutItem.name,
+        final_discounted_price: finalPriceToPay 
+      },
+      total_amount: finalPriceToPay,
+      voucher_code: appliedVoucher ? appliedVoucher.code : null
+    };
+
+    const response = await axios.post("https://johen-gaming-backend-production.up.railway.app/orders/checkout", payload);
+    const orderId = response.data.order_summary?.order_id;
     
-    setIsProcessing(true);
-    setErrorMsg("");
-
-    try {
-      const loggedInName = localStorage.getItem("user-name") || "Guest";
-      const loggedInEmail = localStorage.getItem("user-email") || "";
-      const payload = {
-        order_type: 'account',
-        product_ref_id: checkoutItem.id,
-        customer_name: loggedInName, 
-        customer_phone: waNumber,
-        customer_email: loggedInEmail,
-        game_credentials: { 
-          product_name: checkoutItem.name,
-          final_discounted_price: finalPriceToPay 
-        },
-        total_amount: finalPriceToPay,
-        voucher_code: appliedVoucher ? appliedVoucher.code : null
-      };
-
-      const response = await axios.post("https://johen-gaming-backend-production.up.railway.app/orders/checkout", payload);
-      const orderId = response.data.order_summary?.order_id;
-      
-      if (orderId) {
-        // Jika transaksi berhasil dan menggunakan voucher, update kuota pemakaian di Supabase
-        if (appliedVoucher) {
-          await supabase
-            .from('vouchers')
-            .update({ current_usage: appliedVoucher.current_usage + 1 })
-            .eq('id', appliedVoucher.id);
-        }
-
-        // Hapus item dari keranjang (kalau user checkout dari keranjang)
-        const currentCart = JSON.parse(localStorage.getItem("johen-cart") || "[]");
-const newCart = currentCart.filter((item: any) => String(item.id) !== String(checkoutItem.id));
-localStorage.setItem("johen-cart", JSON.stringify(newCart));
-window.dispatchEvent(new Event("cartUpdated"));
-
-        // Bersihkan meja kasir
-        localStorage.removeItem("checkout-item"); 
-        
-        // Pindah ke invoice
-        router.push(`/invoice/${orderId}`);
+    if (orderId) {
+      if (appliedVoucher) {
+        await supabase
+          .from('vouchers')
+          .update({ current_usage: appliedVoucher.current_usage + 1 })
+          .eq('id', appliedVoucher.id);
       }
-    } catch (error: any) {
-      setErrorMsg(error.response?.data?.message || "Terjadi kesalahan saat membuat pesanan.");
-      setIsProcessing(false);
+
+      // --- SAPU BERSIH SEMUA KERANJANG & CHECKOUT ---
+      localStorage.removeItem("checkout-item"); 
+      localStorage.removeItem("johen-cart"); // Ini yang bikin item hilang dari keranjang
+      window.dispatchEvent(new Event("cartUpdated")); // Update icon keranjang di navbar
+      
+      // Pindah ke invoice
+      router.push(`/invoice/${orderId}`);
     }
-  };
+  } catch (error: any) {
+    setErrorMsg(error.response?.data?.message || "Terjadi kesalahan saat membuat pesanan.");
+    setIsProcessing(false);
+  }
+};
 
   // Mencegah layar berkedip saat mengecek localstorage
   if (!checkoutItem) return <div className="min-h-[80vh] flex items-center justify-center"><Loader2 className="animate-spin text-[var(--color-johen-cyan)]" size={40} /></div>;

@@ -36,9 +36,19 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // PENANGKAL CRASH RAILWAY: Cek token yang benar sebelum dikirim
+    const getConfig = () => {
+      const token = localStorage.getItem("user-token");
+      // Hanya kirim header jika token benar-benar ada (bukan string kosong/null)
+      if (token && token !== "null" && token !== "undefined") {
+        return { headers: { Authorization: `Bearer ${token}` } };
+      }
+      return {}; // Kosongkan header jika tidak ada token (sedang logout)
+    };
+
     Promise.all([
-      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games"),
-      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list")
+      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games", getConfig()),
+      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list", getConfig())
     ])
       .then(([resGames, resAccounts]) => {
         setGames(resGames.data.data || []);

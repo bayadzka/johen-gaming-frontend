@@ -78,7 +78,14 @@ export default function Navbar() {
   };
 
 const handleLogout = async () => {
-    localStorage.clear();
+    // Jangan pakai localStorage.clear() karena akan menghapus semua memori secara paksa
+    // Hapus spesifik data user saja
+    localStorage.removeItem("user-token");
+    localStorage.removeItem("user-name");
+    localStorage.removeItem("user-email");
+    localStorage.removeItem("user-phone");
+    
+    // Refresh halaman agar otomatis jadi mode Guest
     window.location.href = "/";
   };
 
