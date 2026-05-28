@@ -32,30 +32,14 @@ export default function CheckoutPage() {
     router.push("/"); 
   }
 
-  // PENANGKAP WA LANGSUNG DARI DATABASE
-  const fetchPhoneFromDB = async () => {
-    const userEmail = localStorage.getItem("user-email");
-    if (userEmail) {
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('phone')
-          .eq('email', userEmail)
-          .single();
-
-        if (data && data.phone) {
-          let cleanPhone = data.phone;
-          if (cleanPhone.startsWith("62")) cleanPhone = cleanPhone.slice(2);
-          else if (cleanPhone.startsWith("0")) cleanPhone = cleanPhone.slice(1);
-          setWaNumber(cleanPhone);
-        }
-      } catch (err) {
-        console.error("Gagal ambil WA dari Supabase:", err);
-      }
+  const savedPhone = localStorage.getItem("user-phone");
+    if (savedPhone && savedPhone !== "null" && savedPhone !== "undefined") {
+      let cleanPhone = savedPhone;
+      if (cleanPhone.startsWith("62")) cleanPhone = cleanPhone.slice(2);
+      else if (cleanPhone.startsWith("0")) cleanPhone = cleanPhone.slice(1);
+      setWaNumber(cleanPhone);
     }
-  };
-  fetchPhoneFromDB();
-}, [router]);
+  }, [router]);
 
   const handleCekVoucher = async () => {
     if (!voucherInput) return;
@@ -140,9 +124,12 @@ export default function CheckoutPage() {
       }
 
       // --- SAPU BERSIH SEMUA KERANJANG & CHECKOUT ---
+      const loggedInEmail = localStorage.getItem("user-email");
+      const cartKey = loggedInEmail ? `johen-cart-${loggedInEmail}` : "johen-cart-guest";
+      
+      localStorage.removeItem(cartKey);
       localStorage.removeItem("checkout-item"); 
-      localStorage.removeItem("johen-cart"); // Ini yang bikin item hilang dari keranjang
-      window.dispatchEvent(new Event("cartUpdated")); // Update icon keranjang di navbar
+      window.dispatchEvent(new Event("cartUpdated"));
       
       // Pindah ke invoice
       router.push(`/invoice/${orderId}`);
