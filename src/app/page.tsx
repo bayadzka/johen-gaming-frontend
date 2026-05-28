@@ -36,29 +36,37 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // PENANGKAL CRASH RAILWAY: Cek token yang benar sebelum dikirim
+    // Fungsi pengaman token
     const getConfig = () => {
       const token = localStorage.getItem("user-token");
-      // Hanya kirim header jika token benar-benar ada (bukan string kosong/null)
       if (token && token !== "null" && token !== "undefined") {
         return { headers: { Authorization: `Bearer ${token}` } };
       }
-      return {}; // Kosongkan header jika tidak ada token (sedang logout)
+      return {}; 
     };
 
-    Promise.all([
-      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games", getConfig()),
-      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list", getConfig())
-    ])
-      .then(([resGames, resAccounts]) => {
+    // 1. Ambil data GAMES secara mandiri (Aman untuk guest/publik)
+    axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games")
+      .then((resGames) => {
         setGames(resGames.data.data || []);
-        setAccounts(resAccounts.data.data || []);
-        setLoading(false);
       })
       .catch((err) => {
-        console.error("Gagal memuat data toko:", err);
+        console.error("Gagal memuat games:", err);
+      });
+
+    // 2. Ambil data ACCOUNTS secara mandiri
+    axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list", getConfig())
+      .then((resAccounts) => {
+        setAccounts(resAccounts.data.data || []);
+      })
+      .catch((err) => {
+        console.error("Gagal memuat akun:", err);
+      })
+      .finally(() => {
+        // Matikan loading spinner setelah keduanya selesai mencoba
         setLoading(false);
       });
+
   }, []);
 
   const filteredGames = games.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
