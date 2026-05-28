@@ -36,29 +36,29 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // PENANGKAL CRASH RAILWAY: Cek token yang benar sebelum dikirim
-    const getConfig = () => {
-      const token = localStorage.getItem("user-token");
-      // Hanya kirim header jika token benar-benar ada (bukan string kosong/null)
-      if (token && token !== "null" && token !== "undefined") {
-        return { headers: { Authorization: `Bearer ${token}` } };
-      }
-      return {}; // Kosongkan header jika tidak ada token (sedang logout)
-    };
-
-    Promise.all([
-      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games", getConfig()),
-      axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list", getConfig())
-    ])
-      .then(([resGames, resAccounts]) => {
-        setGames(resGames.data.data || []);
-        setAccounts(resAccounts.data.data || []);
-        setLoading(false);
+    // 1. Ambil data GAMES (Pasti tampil walau yang lain error)
+    axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/games")
+      .then((resGames) => {
+        if (resGames.data && resGames.data.data) {
+          setGames(resGames.data.data);
+        }
       })
-      .catch((err) => {
-        console.error("Gagal memuat data toko:", err);
-        setLoading(false);
-      });
+      .catch((err) => console.error("Gagal ambil game:", err))
+      .finally(() => setLoading(false));
+
+    // 2. Ambil data AKUN
+    const token = localStorage.getItem("user-token");
+    const config = (token && token !== "null" && token !== "undefined")
+      ? { headers: { Authorization: `Bearer ${token}` } }
+      : {};
+
+    axios.get("https://johen-gaming-backend-production.up.railway.app/accounts/admin-list", config)
+      .then((resAccounts) => {
+        if (resAccounts.data && resAccounts.data.data) {
+          setAccounts(resAccounts.data.data);
+        }
+      })
+      .catch((err) => console.error("Gagal ambil akun:", err));
   }, []);
 
   const filteredGames = games.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
