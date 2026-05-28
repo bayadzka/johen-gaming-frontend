@@ -126,9 +126,9 @@ export default function CheckoutPage() {
 
         // Hapus item dari keranjang (kalau user checkout dari keranjang)
         const currentCart = JSON.parse(localStorage.getItem("johen-cart") || "[]");
-        const newCart = currentCart.filter((item: any) => item.id !== checkoutItem.id);
-        localStorage.setItem("johen-cart", JSON.stringify(newCart));
-        window.dispatchEvent(new Event("cartUpdated"));
+const newCart = currentCart.filter((item: any) => String(item.id) !== String(checkoutItem.id));
+localStorage.setItem("johen-cart", JSON.stringify(newCart));
+window.dispatchEvent(new Event("cartUpdated"));
 
         // Bersihkan meja kasir
         localStorage.removeItem("checkout-item"); 

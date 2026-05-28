@@ -39,40 +39,47 @@ export default function LoginPage() {
         return;
       }
 
-      // DECODE TOKEN JWT SECARA AMAN
       let loggedInName = "User";
-      let loggedInPhone = "";
-      try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        
-        const payload = JSON.parse(jsonPayload);
-        loggedInName = payload.user_metadata?.full_name || payload.full_name || payload.name || "User";
-        
-        // Ambil nomor HP dari payload atau user_metadata
-        loggedInPhone = payload.user_metadata?.phone || payload.phone || ""; 
-      } catch (decodeError) {
-        console.error("Gagal membaca nama dari token JWT:", decodeError);
-      }
+let loggedInPhone = "";
 
-      // ALUR REDIRECT & ISOLASI DATA
-      if (formData.email === "admin@johengaming.com") {
-        localStorage.setItem("sb-token", token);
-        window.location.href = "/admin"; 
-      } else {
-        localStorage.setItem("user-token", token);
-        if (refreshToken) localStorage.setItem("user-refresh-token", refreshToken);
-        localStorage.setItem("user-name", loggedInName);
-        localStorage.setItem("user-email", formData.email);
-        
-        // Simpan nomor HP ke local storage jika ada
-        if (loggedInPhone) localStorage.setItem("user-phone", loggedInPhone); 
-        
-        window.location.href = "/"; 
-      }
+try {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+  
+  const payload = JSON.parse(jsonPayload);
+  loggedInName = payload.user_metadata?.full_name || payload.full_name || payload.name || "User";
+  
+  // PERBAIKAN: Ambil nomor HP dari response.data API langsung sebagai prioritas utama
+  const phoneFromResponse = response.data?.user?.phone || response.data?.phone || response.data?.user_metadata?.phone;
+  
+  // Gabungkan logikanya (Cari di response, kalau tidak ada baru cari di dalam token)
+  loggedInPhone = phoneFromResponse || payload.user_metadata?.phone || payload.phone || ""; 
+} catch (decodeError) {
+  console.error("Gagal membaca data dari token JWT:", decodeError);
+}
+
+// ALUR REDIRECT & ISOLASI DATA
+if (formData.email === "admin@johengaming.com") {
+  localStorage.setItem("sb-token", token);
+  window.location.href = "/admin"; 
+} else {
+  localStorage.setItem("user-token", token);
+  if (refreshToken) localStorage.setItem("user-refresh-token", refreshToken);
+  localStorage.setItem("user-name", loggedInName);
+  localStorage.setItem("user-email", formData.email);
+  
+  // Simpan nomor HP ke memori agar bisa dibaca oleh halaman Checkout
+  if (loggedInPhone) {
+    localStorage.setItem("user-phone", loggedInPhone);
+  } else {
+    console.warn("Perhatian: Nomor HP tidak dikirimkan oleh backend saat login.");
+  }
+  
+  window.location.href = "/"; 
+}
 
     } catch (error: any) {
       setErrorMsg(error.response?.data?.message || "Email atau kata sandi salah.");
